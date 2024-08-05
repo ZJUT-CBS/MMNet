@@ -294,9 +294,9 @@ class PositionwiseFeedForward(nn.Module):
         return self.w_2(self.dropout(F.relu(self.w_1(x))))
 
 
-class AttnSleep(nn.Module):
+class FESleep(nn.Module):
     def __init__(self):
-        super(AttnSleep, self).__init__()
+        super(FESleep, self).__init__()
 
         N = 2  
         d_model = 80  
@@ -325,8 +325,8 @@ class AttnSleep(nn.Module):
 class MMNet(nn.Module):
     def __init__(self):
         super(MMNet, self).__init__()
-        self.time = AttnSleep()
-        self.fre = AttnSleep()
+        self.time = FESleep()
+        self.fre = FESleep()
         
         drate = 0.5
         num_classes = 5
