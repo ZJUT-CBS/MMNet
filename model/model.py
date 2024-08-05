@@ -335,7 +335,7 @@ class MMNet(nn.Module):
         self.ffc = nn.Linear(30*80, num_classes)
         self.fc = nn.Linear(60*80, num_classes)
         
-        self.nl = _NonLocalBlock(60)
+        self.clf = CLF(60)
         self.dropout = nn.Dropout(drate)
         self.inplanes = 60
         self.AFR = self._make_layer(SEBasicBlock, 60, 1)
@@ -362,7 +362,7 @@ class MMNet(nn.Module):
         f = self.fre(y)        
         fusion = torch.cat((t, f), dim=1)
         fusion = self.dropout(fusion)
-        fusion = self.nl(fusion)        
+        fusion = self.clf(fusion)        
         fusion = fusion.contiguous().view(fusion.shape[0], -1)
 
         return self.fc(fusion)
