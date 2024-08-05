@@ -7,9 +7,6 @@ from copy import deepcopy
 import numpy as np
 
 
-########################################################################################
-
-
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=16):
         super(SELayer, self).__init__()
@@ -63,9 +60,9 @@ class SEBasicBlock(nn.Module):
         return out
 
 
-class MRCNN(nn.Module):
+class MSLFE(nn.Module):
     def __init__(self, afr_reduced_cnn_size):
-        super(MRCNN, self).__init__()
+        super(MSLFE, self).__init__()
         drate = 0.5
         self.features1 = nn.Sequential(
             nn.Conv1d(3, 64, kernel_size=50, stride=6, bias=False, padding=24),
@@ -242,15 +239,13 @@ def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
-class TCE(nn.Module):
+class GRM(nn.Module):
     '''
-    Transformer Encoder
-
     It is a stack of N layers.
     '''
 
     def __init__(self, layer, N):
-        super(TCE, self).__init__()
+        super(GRM, self).__init__()
         self.layers = clones(layer, N)
         self.norm = LayerNorm(layer.size)
 
@@ -303,30 +298,26 @@ class AttnSleep(nn.Module):
     def __init__(self):
         super(AttnSleep, self).__init__()
 
-        N = 2  # number of TCE clones
-        d_model = 80  # set to be 100 for SHHS dataset
+        N = 2  
+        d_model = 80  
         d_ff = 120   # dimension of feed forward
         h = 5  # number of attention heads
         dropout = 0.1
         num_classes = 5
         afr_reduced_cnn_size = 30
 
-        # use MRCNN_SHHS for SHHS dataset
-        self.mrcnn = MRCNN(afr_reduced_cnn_size)
+        self.mslfe = MSLFE(afr_reduced_cnn_size)
 
         attn = MultiHeadedAttention(h, d_model, afr_reduced_cnn_size)
         ff = PositionwiseFeedForward(d_model, d_ff, dropout)
-        self.tce = TCE(EncoderLayer(d_model, deepcopy(attn),
+        self.grm = GRM(EncoderLayer(d_model, deepcopy(attn),
                        deepcopy(ff), afr_reduced_cnn_size, dropout), N)
 
         self.fc = nn.Linear(d_model * afr_reduced_cnn_size, num_classes)
 
     def forward(self, x):
-        x_feat = self.mrcnn(x)
-        encoded_features = self.tce(x_feat)
-        # encoded_features = encoded_features.contiguous().view(
-        #     encoded_features.shape[0], -1)
-        # final_output = self.fc(encoded_features)
+        x_feat = self.mslfe(x)
+        encoded_features = self.grm(x_feat)
         return encoded_features
 
 
@@ -443,9 +434,9 @@ class _NonLocalBlock(nn.Module):
         return z
 
 
-class mynet(nn.Module):
+class MMNet(nn.Module):
     def __init__(self):
-        super(mynet, self).__init__()
+        super(MMNet, self).__init__()
         self.time = AttnSleep()
         self.fre = AttnSleep()
         
@@ -483,23 +474,7 @@ class mynet(nn.Module):
         f = self.fre(y)        
         fusion = torch.cat((t, f), dim=1)
         fusion = self.dropout(fusion)
-        fusion = self.nl(fusion)
-        # fusion = self.AFR(fusion) # SE
-        
-        t = t.contiguous().view(t.shape[0], -1)
-        f = f.contiguous().view(f.shape[0], -1)
+        fusion = self.nl(fusion)        
         fusion = fusion.contiguous().view(fusion.shape[0], -1)
-        
-        # output = self.fc(fusion)
 
-        return self.tfc(t), self.ffc(f), self.fc(fusion)
-
-
-if __name__ == '__main__':
-    data=np.random.randn(128, 3, 3000)
-    data=torch.tensor(data, dtype=torch.float32)
-    model=mynet()
-    t, f, output=model(data, data)
-    print(t.shape)
-    print(f.shape)
-    print(output.shape)
+        return self.fc(fusion)
